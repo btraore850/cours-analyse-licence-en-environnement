@@ -1,4 +1,4 @@
-# Analyse — Tronc commun L1
+# Cours Analyse — Tronc commun L1
 
 **Université de N’Zérékoré — Module 2MTH1 0101 (Analyse)**
 
@@ -10,7 +10,7 @@ Enseignant chargé : M. Bakary TRAORE.
 
 Page : https://btraore850.github.io/cours-analyse-licence-en-environnement/
 
-Ce dépôt indépendant héberge uniquement le cours d'Analyse du tronc commun. La plateforme Hydrologie est hébergée dans un autre dépôt.
+Ce dépôt indépendant héberge uniquement le cours d'Analyse du tronc commun.
 
 ## Publication de documents
 
