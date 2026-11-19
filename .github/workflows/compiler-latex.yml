@@ -1,0 +1,38 @@
+
+name: Compiler les documents LaTeX
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compilation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer les fichiers
+        uses: actions/checkout@v4
+
+      - name: Compiler les documents
+        uses: xu-cheng/latex-action@v4
+        with:
+          root_file: |
+            presentations/Chapitre_2_Calcul_differentiel_Beamer.tex
+            cours/Chapitre_2_Calcul_differentiel_Polycopie.tex
+            td/TD2_Calcul_differentiel.tex
+            corriges/Solutions_TD2_Calcul_differentiel.tex
+            tp/TP1_Calcul_differentiel.tex
+          work_in_root_file_dir: true
+
+      - name: Telecharger les PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: Chapitre-2-PDF
+          path: |
+            presentations/Chapitre_2_Calcul_differentiel_Beamer.pdf
+            cours/Chapitre_2_Calcul_differentiel_Polycopie.pdf
+            td/TD2_Calcul_differentiel.pdf
+            corriges/Solutions_TD2_Calcul_differentiel.pdf
+            tp/TP1_Calcul_differentiel.pdf
