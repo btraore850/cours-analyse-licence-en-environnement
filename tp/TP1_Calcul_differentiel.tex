@@ -1,0 +1,67 @@
+% !TeX program = pdflatex
+% Travaux pratiques (1 h), Analyse L1 tronc commun, chapitre 2
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[main=french,provide=*]{babel}
+\usepackage{lmodern,microtype,amsmath,amssymb,booktabs,tabularx,enumitem}
+\usepackage{geometry}
+\geometry{margin=2.35cm,headheight=23pt}
+\usepackage[most]{tcolorbox}
+\usepackage{fancyhdr,lastpage,hyperref}
+\definecolor{Marine}{HTML}{10283F}
+\definecolor{Bleu}{HTML}{176D8E}
+\definecolor{Sarcelle}{HTML}{118F86}
+\definecolor{Pale}{HTML}{EFF5F8}
+\hypersetup{colorlinks=true,urlcolor=Sarcelle,pdftitle={Analyse L1 - TP 1 - Calcul differentiel},pdfauthor={M. Bakary TRAORE}}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small\textbf{Université de N'Zérékoré}}
+\fancyhead[R]{\small Analyse L1 -- 2MTH1 0101}
+\fancyfoot[L]{\small TP 1 -- Chapitre 2}
+\fancyfoot[R]{\small\thepage/\pageref{LastPage}}
+\begin{document}
+\begin{tcolorbox}[enhanced,colback=Bleu,colframe=Bleu,sharp corners,boxrule=0pt]
+\centering
+{\color{white}\large\bfseries UNIVERSITÉ DE N'ZÉRÉKORÉ\par}
+{\color{white!90}Licence 1 -- Tronc commun : Météorologie, Hydrologie, Génie environnemental et GRN\par}\vspace{2mm}
+{\color{white}\LARGE\bfseries TP 1 -- Calcul différentiel\par}
+{\color{white!90}Analyse 2MTH1 0101 -- 1 heure -- M. Bakary TRAORE -- 2026--2027\par}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=Pale,colframe=Sarcelle,title=\textbf{Objectif et matériel}]
+Comparer une dérivée analytique et une dérivée approchée, repérer des extrema et tester un développement limité. \textbf{Outils :} tableur (Excel/LibreOffice) \emph{ou} R, sans extension supplémentaire. Le fichier \texttt{TP1\_Calcul\_differentiel.R} fournit une version reproductible.
+\end{tcolorbox}
+
+\section*{1. Préparation mathématique (10 min)}
+On considère $f(x)=x^3-3x$, pour $x\in[-2,2]$.
+\begin{enumerate}
+\item Calculer $f'(x)$ et $f''(x)$.
+\item Montrer que le maximum local est atteint en $x=-1$ et le minimum local en $x=1$.
+\end{enumerate}
+
+\section*{2. Dérivée numérique et tableau (20 min)}
+La différence centrée est
+\[D_hf(x)=\frac{f(x+h)-f(x-h)}{2h}.\]
+\begin{enumerate}[resume]
+\item Au point $x_0=0.5$, calculer $D_hf(x_0)$ pour $h=0.5$, $0.1$, $0.01$ et comparer à $f'(0.5)$.
+\item Construire un tableau de valeurs $(x,f(x),f'(x))$ pour $x=-2,-1.5,\ldots,2$ ; tracer les courbes de $f$ et $f'$.
+\end{enumerate}
+\textbf{Sur un tableur :} placer $x$ en A2, $h$ en B2 ; calculer $f(x)$ en C2 par \texttt{=A2\string^3-3*A2} et la différence centrée en D2 par
+\[\texttt{=((A2+B2)\string^3-3*(A2+B2)-((A2-B2)\string^3-3*(A2-B2)))/(2*B2)}.\]
+Pour éviter les erreurs de saisie, vérifiez les parenthèses de la formule.
+
+\section*{3. Développement limité et erreur (15 min)}
+Autour de $a=1$, le DL d'ordre 2 est $P_2(h)=-2+3h^2$.
+\begin{enumerate}[resume]
+\item Calculer $f(1.2)$, $P_2(0.2)$ et l'erreur absolue.
+\item Recommencer avec $h=0.1$ puis $h=0.05$. Comment évolue le rapport erreur/$|h|^3$ ?
+\end{enumerate}
+
+\section*{4. Interprétation et rendu (15 min)}
+\begin{enumerate}[resume]
+\item Expliquer pourquoi la précision de la différence centrée s'améliore ici quand $h$ diminue.
+\item Relever les extrema sur le graphique et vérifier avec le signe de $f'$.
+\item Remettre un tableau de résultats, un graphique et une synthèse de 5 à 8 lignes.
+\end{enumerate}
+
+\end{document}
