@@ -1,0 +1,228 @@
+<!doctype html><html lang="fr"><head><base target="_top"><meta charset="utf-8"><title>Évaluations — <?= courseTitle ?></title>
+<style>
+:root{--navy:#0b3954;--teal:#087c91;--ink:#17374c;--line:#dce7ed;--bg:#f5f9fb;--good:#146c4b;--bad:#9f362f}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}header{padding:28px max(20px,calc((100% - 980px)/2));background:linear-gradient(110deg,#07344e,#08818e);color:white}header h1{margin:6px 0;font-size:clamp(1.6rem,4vw,2.7rem)}header p{margin:0;color:#e9f7f8}
+main{width:min(980px,calc(100% - 30px));margin:25px auto 70px}.card{background:white;border:1px solid var(--line);border-radius:15px;padding:23px;margin-bottom:18px;box-shadow:0 5px 20px #14374e0a}h2{font-size:1.4rem;margin:0 0 15px}h3{margin:0 0 10px;font-size:1.06rem}
+.muted{color:#647b8b;font-size:.9rem}.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}label{font-weight:650;display:block;margin-bottom:6px}input:not([type="checkbox"]):not([type="radio"]),select{width:100%;padding:10px 11px;border:1px solid #a9c0cb;border-radius:8px;font:inherit;color:inherit;background:white}
+.button{border:0;background:var(--navy);color:white;border-radius:9px;padding:11px 16px;font:700 15px system-ui;cursor:pointer}.button.secondary{background:#e5f2f5;color:#0b3954}.button:disabled{opacity:.55;cursor:not-allowed}.tag{display:inline-block;padding:4px 10px;border-radius:30px;background:#e7f3f6;color:#145b71;font-size:.8rem;font-weight:750}
+.question{padding:19px 0;border-top:1px solid var(--line)}.choice{display:flex;gap:10px;padding:8px 12px;border-radius:9px;border:1px solid var(--line);margin:8px 0;cursor:pointer}.choice:has(input:checked){background:#e6f6f6;border-color:var(--teal)}.choice input{margin-top:6px}.timer{font-weight:800;background:#e5f5f6;border-radius:9px;padding:8px 14px;font-variant-numeric:tabular-nums}.timer.late{background:#fbe9e4;color:#962b1d}
+.alert{border-left:4px solid #d9a43d;background:#fff5df;padding:12px 15px;margin-bottom:15px}.feedback{padding:12px;background:#eaf7f1;border-left:4px solid var(--good);margin:10px 0}.feedback.bad{background:#fff1ef;border-color:var(--bad)}table{border-collapse:collapse;width:100%;font-size:.91rem}th,td{text-align:left;padding:9px;border-bottom:1px solid var(--line);vertical-align:top}th{background:#edf5f7} .scroll{overflow-x:auto}.hidden{display:none!important}.checkrow{display:flex;gap:9px;align-items:center;font-weight:500;margin:4px 0}.score{font-size:2.7rem;font-weight:800;color:var(--navy)}.message{min-height:20px;color:#a42e22;font-weight:650;margin:9px 0}.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:15px}
+.exam-item{padding:15px 0;border-bottom:1px solid var(--line)}.exam-item:last-child{border-bottom:0}.exam-item h3{margin:0 0 6px}.exam-item p{margin:6px 0}.exam-status{display:inline-block;font-size:.83rem;font-weight:750;padding:4px 11px;border-radius:25px;background:#e9f2f5;color:#31586b}.exam-status.ouverte{background:#e4f5eb;color:#146c4b}.exam-status.a_venir{background:#fff1d5;color:#805612}.exam-status.terminee{background:#eff1f3;color:#57636d}.exam-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.exam-actions .button{min-width:125px}
+.question mjx-container,.choice mjx-container,.feedback mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden;vertical-align:middle}
+@media(max-width:690px){.grid{grid-template-columns:1fr}.card{padding:17px}th,td{padding:6px;font-size:.85rem}}
+</style>
+</head><body>
+<header><div><small>Université de N’Zérékoré · <?= courseTitle ?></small><h1>Évaluations d'Analyse</h1><p>QCM aléatoires, scores privés et suivi des apprentissages</p></div></header>
+<main>
+  <div class="message" role="alert" id="error"></div>
+  <section class="card" id="login"><h2>Connexion sécurisée en cours</h2><p>Connectez-vous depuis la page « Évaluations officielles » du site pédagogique. Votre identité Google sera ensuite vérifiée par le serveur avant tout accès aux notes.</p><p class="muted">Cette fenêtre Apps Script ne doit pas afficher de bouton de connexion Google.</p></section>
+  <section class="card hidden" id="welcome"><div class="row"><div><h2 id="hello"></h2><span class="tag" id="role"></span></div><button class="button secondary" id="refresh">Actualiser les résultats</button></div></section>
+  <div class="hidden" id="student">
+    <section class="card" id="officialExams"><h2>Évaluations officielles programmées</h2><p class="muted">Les épreuves publiées apparaissent ici dès leur programmation. Les questions ne deviennent accessibles qu'à l'heure d'ouverture. Dates et heures affichées selon votre appareil.</p><div id="examList" aria-live="polite">Chargement des évaluations…</div></section>
+    <section class="card hidden" id="quiz"><div class="row"><h2>Questionnaire en cours</h2><div class="timer" id="timer">--:--</div></div><p class="muted" id="remaining"></p><div id="questions"></div><div class="actions"><button class="button" id="submit">Soumettre ma tentative</button><span class="muted" id="saved">Enregistrement périodique des réponses.</span></div></section>
+    <section class="card hidden" id="result"><h2>Résultat enregistré</h2><div class="score" id="score"></div><p id="scoreDesc"></p><div id="explanations"></div><button class="button secondary" id="leaveQuiz">Retour aux évaluations</button></section>
+    <section class="card"><h2>Mon historique</h2><div class="scroll"><table><thead><tr><th>Date</th><th>Évaluation</th><th>Note /10</th><th>Statut</th></tr></thead><tbody id="myHistory"></tbody></table></div></section>
+  </div>
+  <div class="hidden" id="teacher">
+    <section class="card"><div class="row"><h2>Tableau de bord enseignant</h2><a class="button secondary" id="sheetLink" target="_blank" rel="noopener">Ouvrir les notes dans Google Sheets / Excel</a></div><p class="muted">Les notes par tentative sont enregistrées dans le classeur privé. Téléchargez-le au format Excel depuis Fichier → Télécharger.</p></section>
+    <section class="card"><h2>Suivi des révisions libres</h2><p class="muted">Chaque tentative commencée est recensée par adresse Google vérifiée, sans inscription préalable. Le groupe « Sans tentative » concerne uniquement les étudiants déjà connus dans ETUDIANTS ; cela ne prouve pas qu'ils n'étudient pas autrement.</p><p id="revisionSummary" aria-live="polite"></p><div class="actions"><label for="revisionFilter">Afficher :</label><select id="revisionFilter" style="max-width:240px"><option value="all">Toutes les adresses</option><option value="without">Inscrits sans tentative</option><option value="active">Avec des tentatives</option><option value="guests">Non inscrits dans la base</option></select></div><div class="scroll"><table><thead><tr><th>Adresse e-mail</th><th>Étudiant</th><th>Inscrit</th><th>Commencées</th><th>Terminées</th><th>7 jours</th><th>30 jours</th><th>Dernière tentative</th><th>Moyenne /10</th></tr></thead><tbody id="revisionRows"></tbody></table></div><p class="muted">L'historique détaillé figure dans l'onglet privé AUTO_TENTATIVES du classeur.</p></section>
+    <section class="card"><h2>Créer une évaluation officielle</h2><form id="examForm"><div class="grid"><div><label for="title">Titre</label><input id="title" required value="Évaluation — Analyse L1"></div><div><label for="examLevel">Difficulté</label><select id="examLevel"><option value="facile">Facile</option><option value="moyen">Moyen</option><option value="difficile">Difficile</option><option value="tous" selected>Tous niveaux</option></select></div><div><label for="examCount">Questions</label><input id="examCount" type="number" min="1" max="40" value="10" required></div><div><label for="examMinutes">Durée (minutes)</label><input id="examMinutes" type="number" min="1" max="180" value="25" required></div><div><label for="maxAttempts">Nombre de tentatives</label><input id="maxAttempts" type="number" min="1" max="10" value="1" required></div><div><label for="group">Groupe (facultatif)</label><input id="group" placeholder="Tous les groupes"></div><div><label for="openAt">Ouverture</label><input id="openAt" type="datetime-local"></div><div><label for="closeAt">Fermeture</label><input id="closeAt" type="datetime-local"></div></div><p><strong>Chapitres concernés :</strong></p><div id="chapters"></div><p class="muted">La création conserve l'épreuve en brouillon. Les 210 QCM d'entraînement sont également admissibles aux examens ; leurs corrigés sont publics. Avec 10 questions et « Tous niveaux », le tirage mélange 3 faciles, 4 moyennes et 3 difficiles. Cliquez sur « Publier » lorsque le calendrier est prêt : les étudiants verront la programmation, sans accéder aux QCM avant l'ouverture.</p><button class="button" type="submit">Créer (brouillon)</button></form></section>
+    <section class="card"><h2>Évaluations programmées</h2><div class="scroll"><table><thead><tr><th>Évaluation</th><th>Chapitres</th><th>Dates</th><th>Statut</th><th>Publication</th></tr></thead><tbody id="teacherExams"></tbody></table></div></section>
+    <section class="card"><h2>Tentatives enregistrées</h2><div class="scroll"><table><thead><tr><th>Étudiant</th><th>Évaluation</th><th>Date</th><th>Note /10</th></tr></thead><tbody id="teacherAttempts"></tbody></table></div></section>
+  </div>
+</main>
+<script>
+window.MathJax={tex:{inlineMath:[['\\(','\\)']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
+<script>
+/* Mathematical typography for the Analyse L1 Chimie question bank.
+ * This module is intentionally display-only: source questions, options and
+ * answer keys stay unchanged, and no untrusted text is injected as HTML.
+ */
+(function (root) {
+  'use strict';
+  const sub = { '₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9','ₙ':'n','ₓ':'x','₊':'+','₋':'-' };
+  const sup = { '⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9','ⁿ':'n','⁻':'-','⁺':'+' };
+  function isMath(word) {
+    const w = word.replace(/^[«“]+|[,.?:!;»”]+$/g,'');
+    if (!w) return false;
+    if (/^[+\-−×*/=<>≤≥≠±⇒≈]+$/.test(w)) return true;
+    if (/^[0-9]+(?:[,.][0-9]+)?$/.test(w)) return 'number';
+    return /[₀-₉₊ₙₓ⁰-⁹¹²³ⁿ⁻⁺′″∫∂√Σ∞ℝℂℤπ∩∪∈∉⊂⊆∀∃≥≤≠⇒↦≈±×|{}]|[a-zA-Z]\^|(?:[fghQyP]\([^)]*\))|(?:diag|det)\(|\b(?:x|n|dx|dv|sin|cos|ln|exp)\b|\b(?:lim|DL)[₀-₉ₓ]|[0-9]+\/[0-9]+|[0-9]+[xyti]|[\[\]][^\s]*;|^[A-Za-z]{1,3}=[A-Za-z]{1,3}$|^\(-?[0-9]+,-?[0-9]+\)$/.test(w) || /^[([]?[0-9]*[xynt][0-9+−=()/xynt\-]*[)\]]?$/.test(w);
+  }
+  function tex(source) {
+    let s=String(source).trim();
+    // Protect large structural expressions before converting individual glyphs.
+    s=s.replace(/\{([^{}]*)\}/g,'\\lbrace $1\\rbrace')
+      .replace(/√\(([^()]+)\)\/\(([^()]+)\)/g,'\\frac{\\sqrt{$1}}{$2}')
+      .replace(/(?:ln|sin|cos)\([^()]+\)\/[xnt]/g,m=>{const match=m.match(/^(ln|sin|cos)\(([^()]+)\)\/([xnt])$/);return '\\frac{\\'+match[1]+'('+match[2]+')}{'+match[3]+'}';})
+      .replace(/∂²f\/∂x∂y/g,'\\frac{\\partial^{2}f}{\\partial x\\,\\partial y}')
+      .replace(/∂f\/∂([xy])/g,'\\frac{\\partial f}{\\partial $1}')
+      .replace(/dQ\/dt/g,'\\frac{dQ}{dt}')
+      .replace(/limₓ→([∞0-9]+)/g,'\\lim_{x\\to $1}')
+      .replace(/Σₙ≥([0-9]+)/g,'\\sum_{n\\ge $1}').replace(/Σ/g,'\\sum ')
+      .replace(/∫([₀-₉]+)\^([0-9∞]+)/g,(_,a,b)=>'\\int_{'+Array.from(a).map(x=>sub[x]||x).join('')+'}^{'+b+'}')
+      .replace(/∫([₀-₉]+)([⁰-⁹¹²³]+)/g,(_,a,b)=>'\\int_{'+Array.from(a).map(x=>sub[x]||x).join('')+'}^{'+Array.from(b).map(x=>sup[x]||x).join('')+'}')
+      .replace(/∫([₀-₉]+)(?=\s|$)/g,(_,a)=>'\\int_{'+Array.from(a).map(x=>sub[x]||x).join('')+'}')
+      .replace(/∫/g,'\\int ');
+    s=s.replace(/([a-zA-Z])([₀-₉₊ₙₓ]+)/g,(_,letter,index)=>letter+'_{'+Array.from(index).map(x=>sub[x]||x).join('')+'}')
+      .replace(/([⁰-⁹¹²³ⁿ⁻⁺]+)/g,(_,power)=>'^{'+Array.from(power).map(x=>sup[x]||x).join('')+'}')
+      .replace(/\^\(([^()]+)\)/g,'^{$1}')
+      .replace(/DL_\{([0-9]+)\}/g,'\\mathrm{DL}_{$1}');
+    // Parenthesized ratios, simple numerical fractions and algebraic quotients.
+    s=s.replace(/\(([^()]+)\)\s*\/\s*\(([^()]+)\)/g,'\\frac{$1}{$2}')
+      .replace(/\(([^()]+)\)\s*\/\s*([a-zA-Z])/g,'\\frac{$1}{$2}')
+      .replace(/\b([0-9]+)\s*\/\s*([0-9]+|x(?:\^\{[0-9]+\})?|n!)/g,'\\frac{$1}{$2}')
+      .replace(/\b([0-9]*[a-zA-Z](?:\^\{[0-9]+\})?)\s*\/\s*([0-9]+|x)/g,'\\frac{$1}{$2}');
+    s=s.replace(/√\(([^()]+)\)/g,'\\sqrt{$1}').replace(/√([a-zA-Z0-9]+)/g,'\\sqrt{$1}');
+    s=s.replace(/([\]\[])([−+0-9∞]+)\s*;\s*([−+0-9∞]+)([\]\[])/g,(_,open,a,b,close)=>'\\mathopen{'+open+'}'+a+';'+b+'\\mathclose{'+close+'}')
+      .replace(/(?<!\\)\b(ln|sin|cos|exp)\b/g,'\\$1')
+      .replace(/ℝ/g,'\\mathbb{R}').replace(/ℂ/g,'\\mathbb{C}').replace(/ℤ/g,'\\mathbb{Z}').replace(/π/g,'\\pi').replace(/ω/g,'\\omega')
+      .replace(/∩/g,'\\cap ').replace(/∪/g,'\\cup ').replace(/∈/g,'\\in ').replace(/∉/g,'\\notin ')
+      .replace(/⊂/g,'\\subset ').replace(/⊆/g,'\\subseteq ').replace(/∀/g,'\\forall ').replace(/∃/g,'\\exists ')
+      .replace(/\b(diag|det)\b/g,'\\operatorname{$1}').replace(/∞/g,'\\infty').replace(/→/g,'\\to')
+      .replace(/↦/g,'\\mapsto').replace(/⇒/g,'\\Rightarrow')
+      .replace(/≥/g,'\\ge ').replace(/≤/g,'\\le ').replace(/≠/g,'\\ne ')
+      .replace(/≈/g,'\\approx ').replace(/±/g,'\\pm ').replace(/×/g,'\\times ')
+      .replace(/…/g,'\\ldots ').replace(/−/g,'-').replace(/′/g,"'").replace(/″/g,"''")
+      .replace(/\bdx\b/g,'\\,\\mathrm{d}x').replace(/\bdv\b/g,'\\,\\mathrm{d}v');
+    return s;
+  }
+  function format(source) {
+    const original=String(source==null?'':source)
+      .replace(/\{([^{}]*)\}/g,(_,inside)=>'{'+inside.replace(/\s*:\s*/g,':')+'}')
+      .replace(/([\[\]])([−+0-9∞]+)\s*;\s*([−+0-9∞]+)([\[\]])/g,'$1$2;$3$4');
+    if (/\\\(|\\\[/.test(original)) return original; // Already delimited for MathJax.
+    const words=original.match(/\s+|[^\s]+/g)||[];
+    let result='', math='';
+    function flush(){if(math){const whitespace=(math.match(/\s+$/)||[''])[0];const expression=math.trim();if(expression)result+='\\('+tex(expression)+'\\)';result+=whitespace;math='';}}
+    for(let i=0;i<words.length;i++){
+      const raw=words[i];
+      if(/^\s+$/.test(raw)){
+        if(math)math+=raw;else result+=raw;
+        continue;
+      }
+      const end=(raw.match(/[.,:?!]+$/)||[''])[0];
+      const body=end?raw.slice(0,-end.length):raw;
+      const classification=isMath(body);
+      const hasNearby=classification==='number' && (Boolean(math.trim()) || words.slice(i+1).find(w=>!/^\s+$/.test(w)) && isMath(words.slice(i+1).find(w=>!/^\s+$/.test(w)))===true);
+      if(classification===true||hasNearby){math+=body;}else{flush();result+=body;}
+      if(end){flush();result+=end;}
+    }
+    flush();
+    // Strip whitespace between plain text and the following math delimiters.
+    return result.replace(/ +\\\(/g,' \\(');
+  }
+  root.CHEM_MATH=Object.freeze({format,tex});
+})(typeof window==='undefined'?globalThis:window);
+</script>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id);let session='',profile=null,dashboard=null,attempt=null,answers={},timerInterval=null,saveInterval=null,submitting=false;
+let examControls=new Map();
+const BRIDGE_NONCE=<?!= JSON.stringify(bridgeNonce) ?>;
+const COURSE=<?!= JSON.stringify(courseSlug) ?>;
+const METHODS={signIn:'courseSignIn',getDashboard:'courseGetDashboard',startExam:'courseStartExam',saveDraft:'courseSaveDraft',submitAttempt:'courseSubmitAttempt',adminCreateExam:'courseAdminCreateExam',adminToggleExam:'courseAdminToggleExam'};
+const TRUSTED_ORIGIN='https://btraore850.github.io';
+let loginReceived=false;
+function reportToPortal(kind,extra={}){
+  // Le navigateur vérifie targetOrigin : aucun jeton ni résultat ne part ailleurs.
+  window.top.postMessage({kind,nonce:BRIDGE_NONCE,...extra},TRUSTED_ORIGIN);
+}
+window.addEventListener('message',event=>{
+  if(event.origin!==TRUSTED_ORIGIN)return;
+  const data=event.data;
+  if(!data||data.kind!=='hydro-auth-token'||data.nonce!==BRIDGE_NONCE||loginReceived)return;
+  if(typeof data.token!=='string'||data.token.length<100||data.token.length>6000)return;
+  loginReceived=true;
+  window.googleLoginCallback({credential:data.token});
+});
+function reportHeight(){reportToPortal('hydro-frame-height',{height:document.documentElement.scrollHeight});}
+window.addEventListener('load',()=>{
+  reportToPortal('hydro-frame-ready');
+  reportHeight();
+  if(typeof ResizeObserver==='function')new ResizeObserver(reportHeight).observe(document.body);
+});
+function error(err){$('error').textContent=err&&err.message?err.message:String(err);setTimeout(()=>{$('error').textContent='';},12000);}
+function request(name,...params){return new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[METHODS[name]](COURSE,...params));}
+function safeDate(value){if(!value)return '—';const t=new Date(value);return Number.isNaN(t.getTime())?'—':t.toLocaleString('fr-FR');}
+function readableChapters(value){return String(value).split(/[,.;|]/).filter(Boolean).join(', ');}
+function show(id,yes){$(id).classList.toggle('hidden',!yes);}
+function seconds(n){const v=Math.max(0,Math.ceil(n));return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0');}
+function node(tag,txt,cls){const el=document.createElement(tag);if(txt!==undefined)el.textContent=txt;if(cls)el.className=cls;return el;}
+function chemText(value){return window.CHEM_MATH?window.CHEM_MATH.format(value):String(value);}
+function clearChem(element){if(window.MathJax&&typeof window.MathJax.typesetClear==='function')window.MathJax.typesetClear([element]);}
+function typesetChem(element){if(window.MathJax&&typeof window.MathJax.typesetPromise==='function')window.MathJax.typesetPromise([element]).catch(e=>console.warn('Formules du QCM :',e));}
+window.googleLoginCallback=async ({credential})=>{try{const response=await request('signIn',credential);session=response.session;profile=response.profile;show('login',false);show('welcome',true);$('hello').textContent='Bienvenue, '+profile.name;$('role').textContent=profile.role==='teacher'?'Enseignant':'Étudiant';await refresh();reportToPortal('hydro-auth-result',{ok:true,role:profile.role});reportHeight();}catch(e){error(e);reportToPortal('hydro-auth-result',{ok:false,message:String(e&&e.message||e).slice(0,200)});loginReceived=false;}};
+async function refresh(){if(!session)return;try{dashboard=await request('getDashboard',session);show('student',dashboard.role==='student');show('teacher',dashboard.role==='teacher');if(dashboard.role==='student'){renderStudent();}else{renderTeacher();}}catch(e){error(e);}}
+function stateOfExam(ex){
+  const from=ex.ouverture_iso?Date.parse(ex.ouverture_iso):-Infinity;
+  const to=ex.fermeture_iso?Date.parse(ex.fermeture_iso):Infinity;
+  if(Number.isNaN(from)||Number.isNaN(to)||to<=from)return 'indisponible';
+  return Date.now()<from?'a_venir':Date.now()>=to?'terminee':'ouverte';
+}
+function updateExamAvailability(){
+  for(const {exam,badge,button,limitReached} of examControls.values()){
+    const state=stateOfExam(exam);
+    badge.className='exam-status '+state;
+    badge.textContent=state==='a_venir'?'À venir':state==='ouverte'?'Ouverte':state==='terminee'?'Terminée':'Indisponible';
+    button.disabled=state!=='ouverte'||limitReached;
+    button.textContent=limitReached?'Tentatives épuisées':state==='ouverte'?'Commencer':state==='a_venir'?'Pas encore ouverte':'Terminée';
+  }
+}
+function renderStudent(){
+  const exams=$('examList');exams.replaceChildren();examControls=new Map();
+  if(!dashboard.exams.length)exams.append(node('p','Aucune évaluation officielle publiée pour le moment.'));
+  dashboard.exams.forEach(ex=>{
+    const row=node('article',undefined,'exam-item');
+    const heading=node('h3',ex.titre);
+    const badge=node('span',undefined,'exam-status');
+    const metadata=node('p','Chapitres '+readableChapters(ex.chapitres)+' · '+ex.nb_questions+' QCM · '+ex.duree_minutes+' min','muted');
+    const timing=node('p','Ouverture : '+safeDate(ex.ouverture_iso)+' · Fermeture : '+safeDate(ex.fermeture_iso),'muted');
+    const control=node('div',undefined,'exam-actions');
+    const button=node('button','Vérification…','button');button.type='button';
+    button.addEventListener('click',()=>{if(!button.disabled)begin(ex.id);});
+    control.append(badge,button);row.append(heading,metadata,timing,control);exams.append(row);
+    const limitReached=dashboard.attempts.filter(at=>String(at.evaluation_id)===ex.id).length>=ex.tentatives_max;
+    examControls.set(ex.id,{exam:ex,badge,button,limitReached});
+  });
+  updateExamAvailability();
+  const tb=$('myHistory');tb.replaceChildren();dashboard.attempts.forEach(at=>{const tr=node('tr');[safeDate(at.debut_iso),at.evaluation_id,at.note_sur_10===''?'—':String(at.note_sur_10),at.statut].forEach(value=>tr.append(node('td',value)));tb.append(tr);});
+}
+function renderTeacher(){
+  $('sheetLink').href=dashboard.sheetUrl;const t=$('teacherExams');t.replaceChildren();
+  dashboard.exams.forEach(ex=>{
+    const tr=node('tr');const active=ex.actif===true||String(ex.actif).toLowerCase()==='true';
+    const state=active?stateOfExam(ex):'brouillon';
+    const stateLabels={brouillon:'Brouillon',a_venir:'Programmée',ouverte:'Ouverte',terminee:'Terminée',indisponible:'Date invalide'};
+    tr.append(node('td',ex.titre+' ('+ex.id+')'),node('td',readableChapters(ex.chapitres)),node('td',safeDate(ex.ouverture_iso)+' – '+safeDate(ex.fermeture_iso)),node('td',stateLabels[state]));
+    const td=node('td');const b=node('button',active?'Retirer':'Publier','button secondary');
+    b.addEventListener('click',async()=>{b.disabled=true;try{await request('adminToggleExam',session,ex.id,!active);await refresh();}catch(e){error(e);b.disabled=false;}});
+    td.append(b);tr.append(td);t.append(tr);
+  });
+  const hist=$('teacherAttempts');hist.replaceChildren();dashboard.attempts.slice(-150).reverse().forEach(at=>{const row=node('tr');[at.email,at.evaluation_id,safeDate(at.debut_iso),at.note_sur_10===''?'—':String(at.note_sur_10)].forEach(x=>row.append(node('td',x)));hist.append(row);});
+  renderRevisionTracking();
+}
+function renderRevisionTracking(){
+  const revisions=dashboard&&dashboard.revisions||{summary:{inscrits:0,sansTentative:0,actifs7j:0,visiteurs:0},rows:[]},s=revisions.summary;
+  $('revisionSummary').textContent=s.inscrits+' inscrit(s) · '+s.sansTentative+' sans tentative · '+s.actifs7j+' actif(s) sur 7 jours · '+s.visiteurs+' adresse(s) non inscrite(s).';
+  const filter=$('revisionFilter').value,rows=revisions.rows.filter(p=>filter==='without'?p.inscrit&&!p.commencees:filter==='active'?p.commencees>0:filter==='guests'?!p.inscrit:true);
+  const table=$('revisionRows');table.replaceChildren();
+  if(!rows.length){const tr=node('tr'),td=node('td','Aucune adresse dans cette catégorie.');td.colSpan=9;tr.append(td);table.append(tr);return;}
+  rows.forEach(p=>{const tr=node('tr');[p.email,p.nom||p.matricule||'—',p.inscrit?'Oui':'Non',p.commencees,p.terminees,p.septJours,p.trenteJours,safeDate(p.derniere),p.moyenne==null?'—':String(p.moyenne)+'/10'].forEach(x=>tr.append(node('td',String(x))));table.append(tr);});
+}
+$('revisionFilter').addEventListener('change',()=>{if(dashboard&&dashboard.role==='teacher')renderRevisionTracking();});
+function buildQuiz(payload){attempt=payload;answers={};submitting=false;show('officialExams',false);show('quiz',true);show('result',false);const list=$('questions');clearChem(list);list.replaceChildren();payload.questions.forEach((q,i)=>{const sec=node('section',undefined,'question');sec.append(node('h3','Question '+(i+1)+'. '+chemText(q.text)));q.choices.forEach((opt,j)=>{const label=node('label',undefined,'choice');const inp=document.createElement('input');inp.type='radio';inp.name='q'+q.id;inp.value=opt.id;inp.addEventListener('change',()=>{answers[q.id]=opt.id;$('remaining').textContent=Object.keys(answers).length+' / '+payload.questions.length+' réponses';});label.append(inp,node('span','ABCD'[j]+'. '+chemText(opt.text)));sec.append(label);});list.append(sec);});typesetChem(list);$('remaining').textContent='0 / '+payload.questions.length+' réponses';$('saved').textContent='Les réponses sont sauvegardées périodiquement.';if(timerInterval)clearInterval(timerInterval);if(saveInterval)clearInterval(saveInterval);timerInterval=setInterval(tick,1000);saveInterval=setInterval(save,45000);tick();window.scrollTo(0,0);}
+async function begin(id){try{const response=await request('startExam',session,id);buildQuiz(response);}catch(e){error(e);}}
+function tick(){if(!attempt)return;const remain=(Date.parse(attempt.deadline)-Date.now())/1000;$('timer').textContent=seconds(remain);$('timer').classList.toggle('late',remain<=60);if(remain<=0)submit();}
+async function save(){if(!attempt||submitting)return;try{await request('saveDraft',session,attempt.id,answers);$('saved').textContent='Réponses sauvegardées.';}catch(e){$('saved').textContent='Enregistrement indisponible — réessayez.';}}
+async function submit(){if(!attempt||submitting)return;submitting=true;clearInterval(timerInterval);clearInterval(saveInterval);$('submit').disabled=true;try{const result=await request('submitAttempt',session,attempt.id,answers);show('quiz',false);show('result',true);$('score').textContent=Number(result.note).toLocaleString('fr-FR')+' / 10';$('scoreDesc').textContent=result.correct+' bonne(s) réponse(s) sur '+result.count+(result.expired?' · Temps écoulé':'')+'. Le résultat est enregistré.';const list=$('explanations');list.replaceChildren();if(result.explanations){result.explanations.forEach((it,i)=>{const div=node('div',undefined,'feedback'+(it.good?'':' bad'));div.append(node('strong','Question '+(i+1)+' — '+(it.good?'Bonne réponse':'À revoir')),node('p',chemText('Réponse attendue : '+it.answer+'. '+it.explanation)));list.append(div);});typesetChem(list);}await refresh();}catch(e){error(e);submitting=false;$('submit').disabled=false;timerInterval=setInterval(tick,1000);saveInterval=setInterval(save,45000);}}
+$('refresh').addEventListener('click',refresh);$('submit').addEventListener('click',submit);$('leaveQuiz').addEventListener('click',()=>{attempt=null;show('result',false);show('officialExams',true);refresh();});
+const chapters=<?!= JSON.stringify(courseChapters) ?>;chapters.forEach((name,i)=>{const el=node('label',undefined,'checkrow');const inp=document.createElement('input');inp.type='checkbox';inp.value=String(i+1);if(i===0)inp.checked=true;el.append(inp,node('span',(i+1)+'. '+name));$('chapters').append(el);});
+$('examForm').addEventListener('submit',async event=>{event.preventDefault();const form=$('examForm');const button=form.querySelector('button[type=submit]');button.disabled=true;const d={title:$('title').value,chapters:Array.from($('chapters').querySelectorAll('input:checked')).map(el=>el.value),level:$('examLevel').value,count:Number($('examCount').value),minutes:Number($('examMinutes').value),maxAttempts:Number($('maxAttempts').value),group:$('group').value,openAt:$('openAt').value?new Date($('openAt').value).toISOString():'',closeAt:$('closeAt').value?new Date($('closeAt').value).toISOString():''};try{const answer=await request('adminCreateExam',session,d);alert('Brouillon créé : '+answer.id+'. QCM admissibles disponibles : '+answer.availableQuestions+'. Cliquez sur « Publier » une fois prêt pour afficher la programmation aux étudiants.');await refresh();}catch(e){error(e);}finally{button.disabled=false;}});
+// Actualiser les dates en continu et récupérer les nouvelles publications sans rechargement.
+setInterval(updateExamAvailability,5000);
+setInterval(()=>{if(session&&profile&&profile.role==='student'&&!attempt)refresh();},60000);
+})();
+</script></body></html>
