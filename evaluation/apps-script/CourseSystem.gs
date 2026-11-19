@@ -116,7 +116,8 @@ function cs_verifyPublicPracticeIdentity(idToken) {return {email:cs_googleIdenti
 function cs_startPublicPractice(idToken,data) {
   const user=cs_googleIdentity_(idToken),d=data||{},chapter=Number(d.chapter),level=String(d.level||'').toLowerCase(),count=Number(d.count);
   const id=String(d.id||'');
-  if(!Number.isInteger(chapter)||chapter<1||chapter>cs_course_().chapters.length||!(level==='mixte'||TIME_PER_QUESTION[level])||![3,5,9,10].includes(count)||!/^AUTO_[a-f0-9-]{36}$/.test(id))throw new Error('Paramètres de révision invalides.');
+  // Les anciens choix 3 et 9 restent valides pour une tentative déjà ouverte.
+  if(!Number.isInteger(chapter)||chapter<1||chapter>cs_course_().chapters.length||!(level==='mixte'||TIME_PER_QUESTION[level])||![3,5,9,10,15].includes(count)||!/^AUTO_[a-f0-9-]{36}$/.test(id))throw new Error('Paramètres de révision invalides.');
   if(!Array.isArray(d.questionIds)||d.questionIds.length!==count)throw new Error('Liste de questions invalide.');
   const pool=cs_bank_(String(chapter),level==='mixte'?'tous':level,'practice'),available=new Set(pool.map(q=>String(q.id)));
   const ids=d.questionIds.map(value=>{
