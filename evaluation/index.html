@@ -52,7 +52,7 @@
       <div class="grid">
         <div class="field"><label for="chapter">Chapitre</label><select id="chapter"><option value="1">1 — Fonctions usuelles</option><option value="2">2 — Calcul différentiel</option><option value="3">3 — Calcul intégral</option><option value="4">4 — Suites numériques</option><option value="5">5 — Séries numériques</option><option value="6">6 — Séries de fonctions et séries entières</option><option value="7">7 — Séries de Fourier</option><option value="8">8 — Équations différentielles par séries entières</option></select></div>
         <div class="field"><label for="level">Difficulté</label><select id="level"><option value="mixte" selected>Mixte — types variés</option><option value="facile">Facile</option><option value="moyen">Moyen</option><option value="difficile">Difficile</option></select></div>
-        <div class="field"><label for="count">Nombre de QCM</label><select id="count"><option value="5">5 questions</option><option value="9" selected>9 questions</option></select></div>
+        <div class="field"><label for="count">Nombre de QCM</label><select id="count"><option value="5">5 questions</option><option value="10" selected>10 questions</option><option value="15">15 questions</option></select></div>
       </div>
       <p class="muted" id="timing">Durée maximale conseillée : 25 minutes.</p>
       <div class="actions"><button class="button" id="start" disabled>Commencer la tentative</button><span class="muted" id="startStatus" role="status"></span></div>
@@ -73,7 +73,8 @@
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
   <script src="quiz-data.js"></script>
-  <script src="diverse-selection.js?v=20261119-1"></script>
+  <script src="extra-questions.js?v=20261119-2"></script>
+  <script src="diverse-selection.js?v=20261119-2"></script>
   <script src="math-notation.js?v=20261119-2"></script>
   <script src="officielle/config.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -83,7 +84,7 @@
     'use strict';
     const $=id=>document.getElementById(id);
     const labels={mixte:'Mixte',facile:'Facile',moyen:'Moyen',difficile:'Difficile'};
-    const secondsPerItem={mixte:150,facile:90,moyen:150,difficile:210};
+    const secondsPerItem={mixte:180,facile:120,moyen:180,difficile:240};
     let current=null,interval=null,deadline=0,started=0,locked=false;
     function shuffled(items){const a=items.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
     function withParaphrases(items){
@@ -98,7 +99,7 @@
     function typesetMath(element){if(window.MathJax&&typeof window.MathJax.typesetPromise==='function')window.MathJax.typesetPromise([element]).catch(error=>console.warn('Affichage mathématique :',error));}
     function clearMath(element){if(window.MathJax&&typeof window.MathJax.typesetClear==='function')window.MathJax.typesetClear([element]);}
     function updateTiming(){const sec=Number($('count').value)*secondsPerItem[$('level').value];$('timing').textContent=`Durée maximale conseillée : ${Math.ceil(sec/60)} minutes.`;}
-    function syncCountChoices(){const menu=$('count'),level=$('level').value,allowed=level==='mixte'?[5,9]:[3],previous=Number(menu.value);menu.replaceChildren();for(const count of allowed){const option=document.createElement('option');option.value=String(count);option.textContent=count+' question'+(count>1?'s':'');menu.append(option);}menu.value=String(allowed.includes(previous)?previous:allowed[allowed.length-1]);updateTiming();}
+    function syncCountChoices(){const menu=$('count'),allowed=[5,10,15],previous=Number(menu.value);menu.replaceChildren();for(const count of allowed){const option=document.createElement('option');option.value=String(count);option.textContent=count+' questions';menu.append(option);}menu.value=String(allowed.includes(previous)?previous:10);updateTiming();}
     function fmt(seconds){const s=Math.max(0,Math.ceil(seconds));return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
     function appreciationFor(score){if(score<5)return 'Insuffisant';if(score<6)return 'Passable';if(score<7)return 'Assez bien';if(score<8)return 'Bien';if(score<9)return 'Très bien';return 'Excellent';}
     function updateProgress(){const answered=current.items.filter(item=>current.answers[item.id]!==undefined).length;$('progress').textContent=`${answered}/${current.items.length} réponses`;}
