@@ -127,6 +127,19 @@ function cs_bank_(chapters,level,mode) {
   const usages=mode==='exam'?['EXAMEN','ENTRAINEMENT']:['ENTRAINEMENT'];
   return cs_records_('QUESTIONS').filter(q=>cs_yes_(q.actif)&&choices.includes(String(q.chapitre).trim())&&(level==='tous'||String(q.niveau).toLowerCase()===level)&&usages.includes(String(q.usage).toUpperCase())&&['A','B','C','D'].includes(String(q.bonne).toUpperCase()));
 }
+/** Un énoncé identique ne doit jamais apparaître deux fois dans une tentative. */
+function cs_questionKey_(q) {
+  return String(q&&q.enonce||'').normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g,'').replace(/\s+/g,' ').trim().toLocaleLowerCase('fr');
+}
+function cs_uniqueQuestions_(pool) {
+  const ids=new Set(),texts=new Set();
+  return cs_shuffle_(pool).filter(q=>{
+    const id=String(q.id),text=cs_questionKey_(q);
+    if(!text||ids.has(id)||texts.has(text))return false;
+    ids.add(id);texts.add(text);return true;
+  });
+}
 /** Révisions libres : aucun contrôle de présence dans ETUDIANTS.
  * Le compte Google est toutefois vérifié par le serveur pour suivre chaque adresse.
  */
@@ -145,6 +158,8 @@ function cs_startPublicPractice(idToken,data) {
     return normalized;
   });
   if(new Set(ids).size!==count)throw new Error('Questions répétées dans la tentative.');
+  const byId=new Map(pool.map(q=>[String(q.id),q]));
+  if(new Set(ids.map(qid=>cs_questionKey_(byId.get(qid)))).size!==count)throw new Error('Énoncés répétés : recommencez le tirage des QCM.');
   return cs_lock_(()=>{
     const existing=cs_find_('AUTO_TENTATIVES',id,'id');
     if(existing){if(String(existing.email)!==user.email)throw new Error('Identifiant de tentative déjà utilisé.');return {id,email:user.email,alreadyStarted:true};}
@@ -207,7 +222,7 @@ function cs_buildAttempt_(user,mode,evalId,chapters,level,count,minutes,maxAttem
   if(!Number.isInteger(count)||count<1||count>40||!Number.isFinite(minutes)||minutes<1||minutes>180)throw new Error('Paramètres d’évaluation invalides.');
   return cs_lock_(()=>{
     if(mode==='exam'&&cs_records_('TENTATIVES').filter(t=>t.email===user.email&&t.evaluation_id===evalId).length>=maxAttempts)throw new Error('Nombre de tentatives autorisées atteint.');
-    const pool=cs_bank_(chapters,level,mode);if(pool.length<count)throw new Error('Banque insuffisante : '+pool.length+' question(s) disponibles pour '+count+' demandées.');
+    const pool=cs_uniqueQuestions_(cs_bank_(chapters,level,mode));if(pool.length<count)throw new Error('Banque insuffisante : '+pool.length+' question(s) disponibles pour '+count+' demandées.');
     const questions=mode==='exam'?cs_selectDistinctExamQuestions_(pool,level,count,evalId):cs_selectQuestions_(pool,level,count,mode);
     const selected=questions.map(q=>({id:String(q.id),order:cs_shuffle_(['A','B','C','D'])}));
     const now=new Date();const close=closeAt?Date.parse(closeAt):Infinity;
@@ -259,9 +274,9 @@ function cs_adminCreateExam(session,data) {
   const count=Number(d.count),minutes=Number(d.minutes),limit=Number(d.maxAttempts);if(!Number.isInteger(count)||count<1||count>40||!Number.isInteger(minutes)||minutes<1||minutes>180||!Number.isInteger(limit)||limit<1||limit>10)throw new Error('Nombre, durée ou tentatives invalides.');
   const start=cs_text_(d.openAt,60),end=cs_text_(d.closeAt,60);if(start&&!Number.isFinite(Date.parse(start)))throw new Error('Date d’ouverture invalide.');if(end&&!Number.isFinite(Date.parse(end)))throw new Error('Date de fermeture invalide.');if(start&&end&&Date.parse(end)<=Date.parse(start))throw new Error('Fermeture antérieure à l’ouverture.');
   const chapterValue=[...new Set(chapters)].join(';');
-  const id='EXAM_'+Utilities.getUuid().slice(0,8).toUpperCase();return cs_lock_(()=>{cs_append_('EVALUATIONS',{id,titre:cs_text_(d.title,100)||cs_course_().title,chapitres:chapterValue,niveau:level,nb_questions:count,duree_minutes:minutes,ouverture_iso:start?new Date(start).toISOString():'',fermeture_iso:end?new Date(end).toISOString():'',actif:false,tentatives_max:limit,groupe:cs_text_(d.group,50)});return {id,enabled:false,availableQuestions:cs_bank_(chapterValue,level,'exam').length};});
+  const id='EXAM_'+Utilities.getUuid().slice(0,8).toUpperCase();return cs_lock_(()=>{cs_append_('EVALUATIONS',{id,titre:cs_text_(d.title,100)||cs_course_().title,chapitres:chapterValue,niveau:level,nb_questions:count,duree_minutes:minutes,ouverture_iso:start?new Date(start).toISOString():'',fermeture_iso:end?new Date(end).toISOString():'',actif:false,tentatives_max:limit,groupe:cs_text_(d.group,50)});return {id,enabled:false,availableQuestions:cs_uniqueQuestions_(cs_bank_(chapterValue,level,'exam')).length};});
 }
-function cs_adminToggleExam(session,id,enabled) {cs_user_(session,true);return cs_lock_(()=>{const ex=cs_find_('EVALUATIONS',cs_text_(id,80),'id');if(!ex)throw new Error('Évaluation introuvable.');if(enabled&&cs_bank_(ex.chapitres,ex.niveau,'exam').length<Number(ex.nb_questions))throw new Error('Banque de QCM insuffisante : vérifiez les chapitres, le niveau et le nombre de questions.');if(enabled&&cs_examState_({...ex,actif:true})==='indisponible')throw new Error('Dates de programmation invalides : corrigez le calendrier avant publication.');cs_patch_('EVALUATIONS',ex._row,{actif:Boolean(enabled)});return {id,enabled:Boolean(enabled)};});}
+function cs_adminToggleExam(session,id,enabled) {cs_user_(session,true);return cs_lock_(()=>{const ex=cs_find_('EVALUATIONS',cs_text_(id,80),'id');if(!ex)throw new Error('Évaluation introuvable.');if(enabled&&cs_uniqueQuestions_(cs_bank_(ex.chapitres,ex.niveau,'exam')).length<Number(ex.nb_questions))throw new Error('Banque de QCM insuffisante : vérifiez les chapitres, le niveau et le nombre de questions.');if(enabled&&cs_examState_({...ex,actif:true})==='indisponible')throw new Error('Dates de programmation invalides : corrigez le calendrier avant publication.');cs_patch_('EVALUATIONS',ex._row,{actif:Boolean(enabled)});return {id,enabled:Boolean(enabled)};});}
 /** Les éventuels anciens déclencheurs restent inoffensifs. */
 function cs_processMailQueue_() {return {sent:0,disabled:true};}
 /** À exécuter une fois seulement si le classeur a été créé sans onglets. */
