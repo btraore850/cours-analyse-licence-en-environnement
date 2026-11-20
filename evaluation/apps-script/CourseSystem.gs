@@ -83,6 +83,29 @@ function cs_examState_(exam,now) {
   return time<from?'a_venir':time>=to?'terminee':'ouverte';
 }
 function cs_visible_(exam,user) {return cs_examGroupAllowed_(exam,user)&&cs_examState_(exam)==='ouverte';}
+/** Régularise après échéance les examens dont la remise à 00:00 a échoué. */
+function cs_finalizeExpiredExams_() {
+  return cs_lock_(()=>{
+    const now=Date.now();
+    const pending=cs_records_('TENTATIVES').filter(a=>String(a.mode)==='exam'&&String(a.statut)==='EN_COURS'&&Number.isFinite(Date.parse(a.expiration_iso))&&Date.parse(a.expiration_iso)<=now);
+    if(!pending.length)return 0;
+    const bank=new Map(cs_records_('QUESTIONS').map(q=>[String(q.id),q]));
+    let finished=0;
+    pending.forEach(a=>{
+      try{
+        const questions=JSON.parse(String(a.questions_json||'[]'));
+        const answers=JSON.parse(String(a.reponses_json||'{}'));
+        if(!Array.isArray(questions)||!questions.length||!answers||typeof answers!=='object'||Array.isArray(answers))return;
+        if(questions.some(q=>!q||!bank.has(String(q.id))))return;
+        const correct=questions.filter(item=>String(answers[item.id]||'').toUpperCase()===String(bank.get(String(item.id)).bonne).toUpperCase()).length;
+        const note=Math.round(100*(10*correct/questions.length))/100;
+        cs_tab_('TENTATIVES').getRange(a._row,7,1,4).setValues([[String(a.expiration_iso),'TERMINE_TEMPS',note,correct]]);
+        finished++;
+      }catch(e){console.warn('Tentative expirée non régularisée, ligne '+a._row+': '+e.message);}
+    });
+    return finished;
+  });
+}
 function cs_revisionDashboard_() {
   const enrolled=cs_records_('ETUDIANTS').filter(s=>cs_yes_(s.actif)&&String(s.email||'').trim());
   const attempts=cs_records_('AUTO_TENTATIVES');
@@ -105,7 +128,7 @@ function cs_revisionDashboard_() {
   return {rows,summary:{inscrits:enrolled.length,sansTentative:rows.filter(p=>p.inscrit&&!p.commencees).length,actifs7j:rows.filter(p=>p.inscrit&&p.septJours>0).length,visiteurs:rows.filter(p=>!p.inscrit).length}};
 }
 function cs_getDashboard(session) {
-  const user=cs_user_(session);const exams=cs_records_('EVALUATIONS');const attempts=cs_records_('TENTATIVES');
+  const user=cs_user_(session);cs_finalizeExpiredExams_();const exams=cs_records_('EVALUATIONS');const attempts=cs_records_('TENTATIVES');
   if(user.role==='teacher')return {role:'teacher',name:user.name,exams:exams.map(({_row,...r})=>r),attempts:attempts.map(({questions_json,reponses_json,_row,...r})=>r),revisions:cs_revisionDashboard_(),sheetUrl:'https://docs.google.com/spreadsheets/d/'+cs_prop_('SPREADSHEET_ID')+'/edit'};
   // La programmation publiée est consultable avant l'ouverture, sans jamais
   // exposer les questions, réponses, étudiants, notes ou brouillons.
