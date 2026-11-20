@@ -23,12 +23,27 @@ function cs_tab_(name) {const tab=cs_db_().getSheetByName(name);if(!tab)throw ne
 function cs_records_(name) {const values=cs_tab_(name).getDataRange().getValues();if(values.length<2)return [];const header=values[0].map(String);return values.slice(1).map((row,i)=>{const item={_row:i+2};header.forEach((h,j)=>item[h]=row[j]);return item;}).filter(x=>String(x[header[0]]||'').trim());}
 function cs_find_(name,id,key) {return cs_records_(name).find(x=>String(x[key])===String(id));}
 function cs_patch_(name,row,fields) {const header=TABLES[name];const tab=cs_tab_(name);Object.keys(fields).forEach(key=>{const idx=header.indexOf(key);if(idx<0)throw new Error('Colonne inconnue : '+key);tab.getRange(row,idx+1).setValue(fields[key]);});}
-function cs_append_(name,values) {cs_tab_(name).appendRow(TABLES[name].map(key=>values[key]===undefined?'':values[key]));}
+function cs_append_(name,values) {
+  const tab=cs_tab_(name),headers=name==='EVALUATIONS'
+    ?tab.getRange(1,1,1,tab.getLastColumn()).getValues()[0].map(String).filter(Boolean):TABLES[name];
+  tab.appendRow(headers.map(key=>values[key]===undefined?'':values[key]));
+}
 function cs_lock_(task) {const lock=LockService.getScriptLock();lock.waitLock(20000);try{return task();}finally{lock.releaseLock();}}
 function cs_text_(value,max) {return String(value||'').trim().slice(0,max||500);}
 function cs_yes_(value) {return value===true||value===1||String(value).trim().toLowerCase()==='oui'||String(value).trim().toLowerCase()==='true';}
 function cs_iso_() {return new Date().toISOString();}
 function cs_shuffle_(data) {const items=data.slice();for(let i=items.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=items[i];items[i]=items[j];items[j]=t;}return items;}
+function cs_googleSubShort_(sub) {
+  const digest=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(sub),Utilities.Charset.UTF_8);
+  return 'G-'+Utilities.base64EncodeWebSafe(digest).replace(/=+$/,'').slice(0,12);
+}
+function cs_newAttemptId_() {
+  for(let i=0;i<8;i++){
+    const id='T-'+Utilities.getUuid().replace(/-/g,'').slice(0,16).toUpperCase();
+    if(!cs_find_('TENTATIVES',id,'id'))return id;
+  }
+  throw new Error('Création de la référence de tentative impossible.');
+}
 
 /** Valide un ID Token Google ; tokeninfo sert ici à l'amorçage gratuit.
  * Pour un déploiement à forte charge, utiliser un validateur JWT avec clés Google.
@@ -48,8 +63,11 @@ function cs_signIn(idToken) {
   const identity=cs_googleIdentity_(idToken),email=identity.email,admin=email===cs_prop_('TEACHER_EMAIL').toLowerCase();
   const student=cs_records_('ETUDIANTS').find(s=>String(s.email).toLowerCase()===email&&cs_yes_(s.actif));
   if(!admin&&!student)throw new Error('Votre adresse Gmail ne figure pas dans la liste des étudiants inscrits.');
-  if(student&&student.google_sub&&String(student.google_sub)!==identity.sub)throw new Error('Ce compte Gmail ne correspond pas au compte initialement inscrit.');
-  if(student&&!student.google_sub)cs_lock_(()=>{const row=cs_records_('ETUDIANTS').find(x=>String(x.email).toLowerCase()===email);if(row&&!row.google_sub){cs_tab_('ETUDIANTS').getRange(row._row,7).setNumberFormat('@');cs_patch_('ETUDIANTS',row._row,{google_sub:identity.sub});}});
+  if(student){
+    const shortSub=cs_googleSubShort_(identity.sub),stored=String(student.google_sub||'');
+    if(stored&&stored!==identity.sub&&stored!==shortSub)throw new Error('Ce compte Gmail ne correspond pas au compte initialement inscrit.');
+    if(stored!==shortSub)cs_lock_(()=>{const row=cs_records_('ETUDIANTS').find(x=>String(x.email).toLowerCase()===email);if(row&&String(row.google_sub||'')===stored){cs_tab_('ETUDIANTS').getRange(row._row,7).setNumberFormat('@');cs_patch_('ETUDIANTS',row._row,{google_sub:shortSub});}});
+  }
   const session=Utilities.getUuid();const profile={email,role:admin?'teacher':'student',name:admin?'M. Bakary TRAORE':(student.prenom+' '+student.nom).trim(),groupe:admin?'':String(student.groupe||'')};
   CacheService.getScriptCache().put('course-session:'+COURSE_ACTIVE+':'+session,JSON.stringify(profile),21600);
   return {session,profile};
@@ -117,7 +135,7 @@ function cs_startPublicPractice(idToken,data) {
   const user=cs_googleIdentity_(idToken),d=data||{},chapter=Number(d.chapter),level=String(d.level||'').toLowerCase(),count=Number(d.count);
   const id=String(d.id||'');
   // Les anciens choix 3 et 9 restent valides pour une tentative déjà ouverte.
-  if(!Number.isInteger(chapter)||chapter<1||chapter>cs_course_().chapters.length||!(level==='mixte'||TIME_PER_QUESTION[level])||![3,5,9,10,15].includes(count)||!/^AUTO_[a-f0-9-]{36}$/.test(id))throw new Error('Paramètres de révision invalides.');
+  if(!Number.isInteger(chapter)||chapter<1||chapter>cs_course_().chapters.length||!(level==='mixte'||TIME_PER_QUESTION[level])||![3,5,9,10,15].includes(count)||!(/^(?:AUTO_[a-f0-9-]{36}|A-[a-f0-9]{16})$/i).test(id))throw new Error('Paramètres de révision invalides.');
   if(!Array.isArray(d.questionIds)||d.questionIds.length!==count)throw new Error('Liste de questions invalide.');
   const pool=cs_bank_(String(chapter),level==='mixte'?'tous':level,'practice'),available=new Set(pool.map(q=>String(q.id)));
   const ids=d.questionIds.map(value=>{
@@ -194,7 +212,7 @@ function cs_buildAttempt_(user,mode,evalId,chapters,level,count,minutes,maxAttem
     const selected=questions.map(q=>({id:String(q.id),order:cs_shuffle_(['A','B','C','D'])}));
     const now=new Date();const close=closeAt?Date.parse(closeAt):Infinity;
     if(!Number.isFinite(close)&&closeAt)throw new Error('Date de fermeture invalide.');
-    const end=new Date(Math.min(now.getTime()+minutes*60000,close));const id=Utilities.getUuid();
+    const end=new Date(Math.min(now.getTime()+minutes*60000,close));const id=cs_newAttemptId_();
     if(end.getTime()<=now.getTime())throw new Error('Cette évaluation est fermée.');
     cs_append_('TENTATIVES',{id,email:user.email,evaluation_id:evalId,mode,debut_iso:now.toISOString(),expiration_iso:end.toISOString(),statut:'EN_COURS',nb_questions:count,questions_json:JSON.stringify(selected),reponses_json:'{}',dernier_enregistrement_iso:now.toISOString()});
     const byId=new Map(pool.map(q=>[String(q.id),q]));
@@ -229,11 +247,7 @@ function cs_submitAttempt(session,id,answers) {
     let correct=0;selected.forEach(item=>{const q=bank.get(item.id);if(!q)throw new Error('Question introuvable : '+item.id);if(String(provided[item.id]||'')===String(q.bonne).toUpperCase())correct++;});
     const count=selected.length;const note=Math.round(100*(10*correct/count))/100;const now=cs_iso_();
     cs_patch_('TENTATIVES',attempt._row,{reponses_json:JSON.stringify(provided),statut:expired?'TERMINE_TEMPS':'TERMINE',fin_iso:now,note_sur_10:note,nb_bonnes:correct,dernier_enregistrement_iso:now});
-    // Aucune notification par e-mail pour l'auto-évaluation : score visible à l'écran.
-    // Les examens officiels conservent, pour l'instant, leur notification prévue.
-    if(attempt.mode==='exam'){
-      const email=user.email;cs_append_('EMAILS',{tentative_id:id,email,objet:'Résultat ce cours — '+attempt.evaluation_id,corps:'Bonjour,\n\nVotre tentative '+id+' est terminée.\nNote : '+note+'/10 ('+correct+'/'+count+' réponses correctes).\nDate : '+now+'\n\nM. Bakary TRAORE',statut:'EN_ATTENTE'});
-    }
+    // Résultat uniquement dans l'espace privé de l'étudiant : aucun e-mail.
     const output={note,correct,count,answered:Object.keys(provided).length,expired,attemptId:id};
     if(attempt.mode==='practice'){output.explanations=selected.map(item=>{const q=bank.get(item.id);return {id:item.id,answer:String(q.bonne),explanation:String(q.explication),good:provided[item.id]===String(q.bonne).toUpperCase()};});}
     return output;
@@ -245,29 +259,11 @@ function cs_adminCreateExam(session,data) {
   const count=Number(d.count),minutes=Number(d.minutes),limit=Number(d.maxAttempts);if(!Number.isInteger(count)||count<1||count>40||!Number.isInteger(minutes)||minutes<1||minutes>180||!Number.isInteger(limit)||limit<1||limit>10)throw new Error('Nombre, durée ou tentatives invalides.');
   const start=cs_text_(d.openAt,60),end=cs_text_(d.closeAt,60);if(start&&!Number.isFinite(Date.parse(start)))throw new Error('Date d’ouverture invalide.');if(end&&!Number.isFinite(Date.parse(end)))throw new Error('Date de fermeture invalide.');if(start&&end&&Date.parse(end)<=Date.parse(start))throw new Error('Fermeture antérieure à l’ouverture.');
   const chapterValue=[...new Set(chapters)].join(';');
-  const id='EXAM_'+Utilities.getUuid().slice(0,8).toUpperCase();return cs_lock_(()=>{cs_append_('EVALUATIONS',{id,titre:cs_text_(d.title,100)||cs_course_().title,chapitres:chapterValue,niveau:level,nb_questions:count,duree_minutes:minutes,ouverture_iso:start?new Date(start).toISOString():'',fermeture_iso:end?new Date(end).toISOString():'',actif:false,tentatives_max:limit,correction_immediate:false,groupe:cs_text_(d.group,50)});return {id,enabled:false,availableQuestions:cs_bank_(chapterValue,level,'exam').length};});
+  const id='EXAM_'+Utilities.getUuid().slice(0,8).toUpperCase();return cs_lock_(()=>{cs_append_('EVALUATIONS',{id,titre:cs_text_(d.title,100)||cs_course_().title,chapitres:chapterValue,niveau:level,nb_questions:count,duree_minutes:minutes,ouverture_iso:start?new Date(start).toISOString():'',fermeture_iso:end?new Date(end).toISOString():'',actif:false,tentatives_max:limit,groupe:cs_text_(d.group,50)});return {id,enabled:false,availableQuestions:cs_bank_(chapterValue,level,'exam').length};});
 }
 function cs_adminToggleExam(session,id,enabled) {cs_user_(session,true);return cs_lock_(()=>{const ex=cs_find_('EVALUATIONS',cs_text_(id,80),'id');if(!ex)throw new Error('Évaluation introuvable.');if(enabled&&cs_bank_(ex.chapitres,ex.niveau,'exam').length<Number(ex.nb_questions))throw new Error('Banque de QCM insuffisante : vérifiez les chapitres, le niveau et le nombre de questions.');if(enabled&&cs_examState_({...ex,actif:true})==='indisponible')throw new Error('Dates de programmation invalides : corrigez le calendrier avant publication.');cs_patch_('EVALUATIONS',ex._row,{actif:Boolean(enabled)});return {id,enabled:Boolean(enabled)};});}
-/** À exécuter une fois manuellement dans l'éditeur Apps Script par le propriétaire. */
-/** Un envoi par étudiant et par tentative, dans la limite du quota Gmail réel.
- * Le verrou n'est pas conservé pendant le transfert réseau des e-mails.
- */
-function cs_processMailQueue_() {
-  let sent=0,quota=MailApp.getRemainingDailyQuota();
-  for(let i=0;i<20&&quota>0;i++){
-    const next=cs_lock_(()=>{const row=cs_records_('EMAILS').find(x=>x.statut==='EN_ATTENTE');if(!row)return null;cs_patch_('EMAILS',row._row,{statut:'EN_COURS',date_envoi:cs_iso_()});return row;});
-    if(!next)break;
-    // Même une ancienne notification d'entraînement en attente ne doit jamais partir.
-    const attempt=cs_find_('TENTATIVES',String(next.tentative_id),'id');
-    if(!attempt||attempt.mode!=='exam'||String(attempt.email).toLowerCase()!==String(next.email).toLowerCase()){
-      cs_lock_(()=>cs_patch_('EMAILS',next._row,{statut:'IGNORE',date_envoi:cs_iso_()}));
-      continue;
-    }
-    try{MailApp.sendEmail(String(next.email),String(next.objet),String(next.corps));cs_lock_(()=>cs_patch_('EMAILS',next._row,{statut:'ENVOYE',date_envoi:cs_iso_()}));sent++;quota--;}
-    catch(error){cs_lock_(()=>cs_patch_('EMAILS',next._row,{statut:'ERREUR',date_envoi:cs_text_(error.message,200)}));}
-  }
-  return {sent,remainingQuota:quota};
-}
+/** Les éventuels anciens déclencheurs restent inoffensifs. */
+function cs_processMailQueue_() {return {sent:0,disabled:true};}
 /** À exécuter une fois seulement si le classeur a été créé sans onglets. */
 function cs_initializeMissingSheets_() {const db=cs_db_();Object.keys(TABLES).forEach(name=>{let sheet=db.getSheetByName(name);if(!sheet){sheet=db.insertSheet(name);sheet.appendRow(TABLES[name]);sheet.setFrozenRows(1);}});}
 
@@ -291,9 +287,7 @@ function courseStartPublicPractice(slug,idToken,data){cs_setCourse_(slug);return
 
 function courseFinishPublicPractice(slug,idToken,id,answers){cs_setCourse_(slug);return cs_finishPublicPractice(idToken,id,answers);}
 
-/** Run once after deployment if exam result e-mails are desired. */
-function installAllCourseMailTrigger_(){ScriptApp.getProjectTriggers().filter(t=>t.getHandlerFunction()==='processAllCourseMail_').forEach(ScriptApp.deleteTrigger);ScriptApp.newTrigger('processAllCourseMail_').timeBased().everyHours(1).create();}
-function processAllCourseMail_(){for(const slug of Object.keys(COURSE_CONFIG)){cs_setCourse_(slug);cs_processMailQueue_();}}
+function processAllCourseMail_(){return {sent:0,disabled:true};}
 
 /** Safe read-only deployment check, available in the Apps Script Run menu. */
 function validateCourseBanks_(){const result={};for(const slug of Object.keys(COURSE_CONFIG)){cs_setCourse_(slug);const all=cs_records_('QUESTIONS');const perChapter=COURSE_CONFIG[slug].chapters.map((_,i)=>all.filter(q=>Number(q.chapitre)===i+1).length);result[slug]={total:all.length,perChapter,valid:all.length===30*perChapter.length&&perChapter.every(n=>n===30)};}console.log(JSON.stringify(result));return result;}
