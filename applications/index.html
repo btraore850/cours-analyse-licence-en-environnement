@@ -4,7 +4,7 @@
 <article class="card"><div class="symbol">🌤️</div><h3>Météorologie</h3><p>Température, pression, périodicité et dynamique de grandeurs atmosphériques.</p></article>
 <article class="card"><div class="symbol">🌊</div><h3>Hydrologie</h3><p>Débit Q(t), volume écoulé, précipitations et stockage.</p></article>
 <article class="card"><div class="symbol">♻️</div><h3>Génie de l’environnement</h3><p>Pollutions, cinétiques de décroissance et bilans de matière.</p></article>
-<article class="card"><div class="symbol">🌱</div><h3>Gestion des Ressources Naturelles</h3><p>Croissance, stocks de biomasse et prélèvements.</p></article></div></section><section class="panel" id="videos-applications"><h2>Vidéos d'application</h2><p>Explications vidéo reliant les notions d'Analyse aux spécialités. Les fichiers volumineux restent hébergés sur OneDrive.</p><article class="card"><span class="label">Vidéo 1</span><h3>Applications des notions mathématiques aux domaines de spécialité</h3><p>Première vidéo partagée par l'enseignant. Chapitre et section à préciser.</p><p><a class="action" href="https://1drv.ms/v/c/96b64801aa91c5f7/IQCIXhhqDDjSRplKuMBbmd2fAfDTXLWQLbrHZxIrogS8CrU?e=4lYdGc" target="_blank" rel="noopener noreferrer">▶ Visionner sur OneDrive</a></p><p class="meta">Le visionnage s'ouvre sur OneDrive ; l'accès dépend des autorisations de partage.</p></article><p class="meta"><a href="VIDEOS.md">Voir le catalogue des vidéos</a></p></section><section class="panel"><h2>Données et fiches d’application disponibles</h2><p>Les fichiers pédagogiques sont classés dans ce dossier GitHub. Dès qu’un fichier PDF, PPTX, DOCX, R, PY, TEX, XLSX ou ZIP y est publié, il apparaît automatiquement dans la liste ci-dessous.</p><div id="file-list" class="note" aria-live="polite">Recherche des ressources publiées…</div>
+<article class="card"><div class="symbol">🌱</div><h3>Gestion des Ressources Naturelles</h3><p>Croissance, stocks de biomasse et prélèvements.</p></article></div></section><section class="panel" id="videos-applications" aria-labelledby="titre-videos-applications"><h2 id="titre-videos-applications">Vidéos d'application par chapitre</h2><p>Choisissez un chapitre pour consulter les vidéos disponibles. Les liens sont ajoutés progressivement, sans héberger les fichiers vidéo dans GitHub.</p><div id="chapitres-videos" aria-live="polite"><p>Chargement du catalogue…</p></div></section><section class="panel"><h2>Données et fiches d’application disponibles</h2><p>Les fichiers pédagogiques sont classés dans ce dossier GitHub. Dès qu’un fichier PDF, PPTX, DOCX, R, PY, TEX, XLSX ou ZIP y est publié, il apparaît automatiquement dans la liste ci-dessous.</p><div id="file-list" class="note" aria-live="polite">Recherche des ressources publiées…</div>
 <p class="meta">L’affichage nécessite une connexion. <a href="https://github.com/btraore850/cours-analyse-licence-en-environnement/tree/main/applications/" target="_blank" rel="noopener noreferrer">Ouvrir le dossier sur GitHub</a> en cas d’indisponibilité de la liste.</p></section>
 <script>(function(){
 const box=document.getElementById('file-list');
@@ -17,4 +17,21 @@ fetch(url,{headers:{Accept:'application/vnd.github+json'}}).then(r=>{if(!r.ok)th
   for(const item of files){const li=document.createElement('li');const a=document.createElement('a');a.href='./'+encodeURIComponent(item.name);a.target='_blank';a.rel='noopener noreferrer';a.textContent=item.name;li.append(a);if(Number.isFinite(item.size)){const meta=document.createElement('span');meta.className='meta';meta.textContent=' — '+(item.size/1024/1024).toFixed(2)+' Mo';li.append(meta);}ul.append(li);}
   box.append(ul);
 }).catch(()=>{box.replaceChildren();const p=document.createElement('p');p.textContent='Liste momentanément indisponible. Les fichiers restent accessibles sur GitHub.';const a=document.createElement('a');a.href='https://github.com/btraore850/cours-analyse-licence-en-environnement/tree/main/applications/';a.textContent='Accéder au dossier de fichiers';box.append(p,a);});
-})();</script></main><footer><div class="wrap">Université de N’Zérékoré · Analyse 2MTH1 0101 · Enseignant : M. Bakary TRAORE · <a href="../index.html">Retour à la plateforme</a></div></footer></body></html>
+})();</script></main><footer><div class="wrap">Université de N’Zérékoré · Analyse 2MTH1 0101 · Enseignant : M. Bakary TRAORE · <a href="../index.html">Retour à la plateforme</a></div></footer><style>
+#chapitres-videos .video-chapters{display:grid;gap:10px;margin:16px 0}
+#chapitres-videos .video-chapter{border:1px solid #d4e5ec;border-radius:11px;background:#fff;overflow:hidden}
+#chapitres-videos .video-summary{cursor:pointer;padding:14px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+#chapitres-videos .video-summary:hover{background:#eef7f9}
+#chapitres-videos .video-summary strong{font-size:.98rem;color:#0b3954}
+#chapitres-videos .video-count{white-space:nowrap;font-size:.8rem;color:#176378;background:#e7f5f7;border-radius:999px;padding:3px 10px}
+#chapitres-videos .video-content{padding:0 16px 15px}
+#chapitres-videos .video-empty,#chapitres-videos .video-small{color:#587080;font-size:.9rem;margin:8px 0}
+#chapitres-videos .video-entry{padding:13px 0;border-top:1px solid #e3edf1}
+#chapitres-videos .video-entry h3{margin:0 0 6px;font-size:1rem}
+#chapitres-videos .video-button{display:inline-block;background:#0b3954;color:#fff;border-radius:8px;text-decoration:none;font-size:.92rem;font-weight:700;padding:9px 13px;margin-top:8px}
+#chapitres-videos .video-button:hover{background:#11607a}
+#chapitres-videos .video-pending{border:1px solid #bcd9e1;border-radius:12px;padding:18px;margin-top:18px;background:#f1f9fa}
+#chapitres-videos .video-pending h3{margin:0 0 6px}
+</style>
+<script src="videos.js" defer></script>
+</body></html>
