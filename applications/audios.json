@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "chapitres": [
+    {
+      "numero": 1,
+      "titre": "Fonctions usuelles"
+    },
+    {
+      "numero": 2,
+      "titre": "Calcul différentiel"
+    },
+    {
+      "numero": 3,
+      "titre": "Calcul intégral"
+    },
+    {
+      "numero": 4,
+      "titre": "Suites numériques"
+    },
+    {
+      "numero": 5,
+      "titre": "Séries numériques"
+    },
+    {
+      "numero": 6,
+      "titre": "Séries de fonctions et séries entières"
+    },
+    {
+      "numero": 7,
+      "titre": "Séries de Fourier"
+    },
+    {
+      "numero": 8,
+      "titre": "Équations différentielles par séries entières"
+    }
+  ],
+  "audios": [
+    {
+      "id": "audio-001",
+      "chapitre": 2,
+      "section": "",
+      "titre": "Modéliser la nature avec le calcul différentiel",
+      "url": "https://1drv.ms/u/c/96b64801aa91c5f7/IQDWI_r1zynGS5aNCzi23KBCARkCHHpRU6VjJ1iRneKgelI?e=N4W4RV",
+      "plateforme": "OneDrive"
+    }
+  ]
+}
