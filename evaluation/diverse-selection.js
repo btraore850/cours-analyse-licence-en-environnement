@@ -14,6 +14,8 @@
       .replace(/[\u200B-\u200D\uFEFF]/g,'').replace(/\s+/g,' ').trim().toLocaleLowerCase('fr');
   }
   function family(item){
+    const explicit=String(item.id).match(/^(V2-C\d+-[FMD]\d+)-V[123]$/);
+    if(explicit)return explicit[1];
     const normalized=prompt(item).replace(/[0-9]+(?:[.,][0-9]+)?/g,'#');
     return String(item.chapter)+'|'+String(item.level)+'|'+normalized;
   }
@@ -28,6 +30,7 @@
       if(!groups.has(key))groups.set(key,[]);
       groups.get(key).push(q);
     }
+    if(pool.length && pool.every(q=>/^V2-/.test(String(q.id))) && groups.size<count)throw new Error('Banque insuffisante : familles distinctes disponibles.');
     if(seenTexts.size<count)throw new Error('Banque insuffisante : '+seenTexts.size+' énoncés distincts disponibles.');
     const ordered=shuffled([...groups.values()].map(g=>shuffled(g,random)),random),selected=[];
     for(let round=0;selected.length<count;round++){
